@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "PromptChecker",
+  "version": "1.0.0",
+  "description": "แจ้งเตือนข้อมูลลับก่อนส่งบน claude.ai — ไม่บล็อก แต่ให้ตัดสินใจเอง",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://claude.ai/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["rules.js", "logger.js", "content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PromptChecker"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  }
+}

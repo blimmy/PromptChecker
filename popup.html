@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <title>PromptChecker</title>
+  <style>
+    /* ===== RESET & BASE ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 380px;
+      min-height: 480px;
+      background: #111827;
+      color: #f9fafb;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-logo { font-size: 20px; }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #f9fafb;
+    }
+
+    .header-sub {
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 1px;
+    }
+
+    /* ===== TOGGLE SWITCH ===== */
+    .toggle-wrap { display: flex; align-items: center; gap: 8px; }
+    .toggle-label { font-size: 12px; color: #9ca3af; }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      height: 22px;
+    }
+
+    .toggle input { display: none; }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: #374151;
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-slider::after {
+      content: '';
+      position: absolute;
+      top: 3px; left: 3px;
+      width: 16px; height: 16px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform 0.2s;
+    }
+
+    .toggle input:checked + .toggle-slider { background: #16a34a; }
+    .toggle input:checked + .toggle-slider::after { transform: translateX(18px); }
+
+    /* ===== TABS ===== */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      font-family: inherit;
+    }
+
+    .tab-btn:hover { color: #d1d5db; }
+    .tab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; }
+
+    /* ===== TAB CONTENT ===== */
+    .tab-content { display: none; padding: 16px; }
+    .tab-content.active { display: block; }
+
+    /* ===== DASHBOARD ===== */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .stat-card {
+      background: #1f2937;
+      border-radius: 8px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f9fafb;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .chart-wrap {
+      background: #1f2937;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .chart-title {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 10px;
+    }
+
+    #pc-chart { width: 100%; display: block; }
+
+    /* ===== SETTINGS ===== */
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin: 0 0 8px;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #1f2937;
+    }
+
+    .setting-row:last-child { border-bottom: none; }
+
+    .setting-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: #d1d5db;
+    }
+
+    .severity-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .section { margin-bottom: 20px; }
+
+    /* Custom keywords */
+    .kw-input-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .kw-input {
+      flex: 1;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: #f9fafb;
+      font-size: 13px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .kw-input:focus { border-color: #60a5fa; }
+
+    .btn-add {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .btn-add:hover { background: #1d4ed8; }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .tag {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 12px;
+      color: #d1d5db;
+    }
+
+    .tag-remove {
+      background: none;
+      border: none;
+      color: #9ca3af;
+      cursor: pointer;
+      font-size: 13px;
+      line-height: 1;
+      padding: 0 2px;
+    }
+
+    .tag-remove:hover { color: #ef4444; }
+
+    /* ===== LOG TAB ===== */
+    .log-toolbar {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .log-filter {
+      flex: 1;
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 5px 8px;
+      color: #f9fafb;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .btn-sm {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 5px 10px;
+      color: #d1d5db;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+    }
+
+    .btn-sm:hover { background: #374151; }
+
+    .btn-danger {
+      border-color: #dc2626;
+      color: #f87171;
+    }
+
+    .btn-danger:hover { background: #7f1d1d; }
+
+    .log-list {
+      max-height: 300px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-list::-webkit-scrollbar { width: 4px; }
+    .log-list::-webkit-scrollbar-track { background: transparent; }
+    .log-list::-webkit-scrollbar-thumb { background: #374151; border-radius: 4px; }
+
+    .log-item {
+      background: #1f2937;
+      border-radius: 7px;
+      padding: 8px 10px;
+      border-left: 3px solid transparent;
+    }
+
+    .log-item.RED    { border-left-color: #dc2626; }
+    .log-item.ORANGE { border-left-color: #ea580c; }
+    .log-item.YELLOW { border-left-color: #ca8a04; }
+
+    .log-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 3px;
+    }
+
+    .log-time { font-size: 11px; color: #6b7280; }
+
+    .log-action {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    .log-action.proceed { background: #064e3b; color: #6ee7b7; }
+    .log-action.edit    { background: #1e3a5f; color: #93c5fd; }
+
+    .log-detected { font-size: 12px; color: #d1d5db; }
+
+    .log-empty {
+      text-align: center;
+      color: #6b7280;
+      padding: 32px 0;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <span class="header-logo">🛡</span>
+      <div>
+        <div class="header-title">PromptChecker</div>
+        <div class="header-sub">ป้องกันข้อมูลลับบน claude.ai</div>
+      </div>
+    </div>
+    <div class="toggle-wrap">
+      <span class="toggle-label" id="toggle-status">เปิด</span>
+      <label class="toggle">
+        <input type="checkbox" id="pc-master-toggle" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-dashboard">📊 Dashboard</button>
+    <button class="tab-btn" data-tab="tab-settings">⚙️ Settings</button>
+    <button class="tab-btn" data-tab="tab-log">📋 Log</button>
+  </div>
+
+  <!-- ===== TAB: DASHBOARD ===== -->
+  <div id="tab-dashboard" class="tab-content active">
+
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-number" id="stat-total">0</div>
+        <div class="stat-label">เตือนเดือนนี้</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-proceeded">0</div>
+        <div class="stat-label">ส่งต่อ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number" id="stat-edited">0</div>
+        <div class="stat-label">แก้ไข</div>
+      </div>
+    </div>
+
+    <div class="chart-wrap">
+      <div class="chart-title">การแจ้งเตือน 7 วันล่าสุด</div>
+      <canvas id="pc-chart" height="100"></canvas>
+    </div>
+
+  </div>
+
+  <!-- ===== TAB: SETTINGS ===== -->
+  <div id="tab-settings" class="tab-content">
+
+    <!-- Severity toggles -->
+    <div class="section">
+      <p class="section-title">ระดับการแจ้งเตือน</p>
+
+      <div class="setting-row">
+        <span class="setting-name">
+          <span class="severity-dot" style="background:#DC2626"></span>
+          วิกฤต (RED)
+        </span>
+        <label class="toggle">
+          <input type="checkbox" id="sev-red" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-name">
+          <span class="severity-dot" style="background:#EA580C"></span>
+          สูง (ORANGE)
+        </span>
+        <label class="toggle">
+          <input type="checkbox" id="sev-orange" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-name">
+          <span class="severity-dot" style="background:#CA8A04"></span>
+          ทั่วไป (YELLOW)
+        </span>
+        <label class="toggle">
+          <input type="checkbox" id="sev-yellow" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Custom keywords -->
+    <div class="section">
+      <p class="section-title">Custom Keywords</p>
+      <div class="kw-input-row">
+        <input id="kw-input" class="kw-input" type="text" placeholder="เพิ่มคำที่ต้องการตรวจ...">
+        <button id="kw-add" class="btn-add">เพิ่ม</button>
+      </div>
+      <div id="kw-list" class="tag-list"></div>
+    </div>
+
+    <!-- Whitelist -->
+    <div class="section">
+      <p class="section-title">Whitelist (ข้าม prompt ที่มีคำนี้)</p>
+      <div class="kw-input-row">
+        <input id="wl-input" class="kw-input" type="text" placeholder="email, domain, หรือคำ...">
+        <button id="wl-add" class="btn-add">เพิ่ม</button>
+      </div>
+      <div id="wl-list" class="tag-list"></div>
+    </div>
+
+  </div>
+
+  <!-- ===== TAB: LOG ===== -->
+  <div id="tab-log" class="tab-content">
+
+    <div class="log-toolbar">
+      <select id="log-filter" class="log-filter">
+        <option value="ALL">ทุกระดับ</option>
+        <option value="RED">🔴 RED</option>
+        <option value="ORANGE">🟠 ORANGE</option>
+        <option value="YELLOW">🟡 YELLOW</option>
+      </select>
+      <button id="log-export" class="btn-sm">Export CSV</button>
+      <button id="log-clear" class="btn-sm btn-danger">Clear</button>
+    </div>
+
+    <div id="log-list" class="log-list">
+      <div class="log-empty">ยังไม่มี log</div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
