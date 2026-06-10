@@ -1,25 +1,16 @@
-// popup.js — Popup logic: Dashboard, Settings, Log
+// popup.js - popup logic: dashboard, settings, log
 
-// ===== DEFAULT SETTINGS =====
 const DEFAULT_SETTINGS = {
   enabledSeverities: { RED: true, ORANGE: true, YELLOW: true },
   customKeywords: [],
   whitelist: []
 };
 
-const SEVERITY_COLORS = {
-  RED:    '#DC2626',
-  ORANGE: '#EA580C',
-  YELLOW: '#CA8A04'
-};
-
-// ===== STORAGE HELPER =====
 const store = {
   get: keys => chrome.storage.local.get(keys),
   set: obj  => chrome.storage.local.set(obj)
 };
 
-// ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
   const { checkerEnabled = true, appSettings = DEFAULT_SETTINGS } =
     await store.get(['checkerEnabled', 'appSettings']);
@@ -31,7 +22,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initLog();
 });
 
-// ===== HEADER — master toggle =====
 function initHeader(enabled) {
   const toggle = document.getElementById('pc-master-toggle');
   const label  = document.getElementById('toggle-status');
@@ -46,7 +36,6 @@ function initHeader(enabled) {
   });
 }
 
-// ===== TAB SWITCHING =====
 function initTabs() {
   const btns     = document.querySelectorAll('.tab-btn');
   const contents = document.querySelectorAll('.tab-content');
@@ -61,11 +50,9 @@ function initTabs() {
   });
 }
 
-// ===== DASHBOARD =====
 async function initDashboard() {
   const { pc_logs: logs = [] } = await store.get('pc_logs');
 
-  // สถิติเดือนนี้
   const now        = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthLogs  = logs.filter(l => new Date(l.timestamp) >= monthStart);
@@ -77,11 +64,11 @@ async function initDashboard() {
   drawBarChart(logs);
 }
 
-// Bar chart 7 วันล่าสุดใช้ Canvas API
+// bar chart for last 7 days using Canvas API
 function drawBarChart(logs) {
   const canvas = document.getElementById('pc-chart');
   const dpr    = window.devicePixelRatio || 1;
-  const W      = canvas.offsetWidth  || 348;
+  const W      = canvas.offsetWidth || 348;
   const H      = 100;
 
   canvas.width  = W * dpr;
@@ -92,7 +79,6 @@ function drawBarChart(logs) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // สร้างข้อมูล 7 วัน
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const d  = new Date();
@@ -110,26 +96,22 @@ function drawBarChart(logs) {
   const chartH = H - padT - padB;
   const barW   = Math.floor(chartW / days.length) - 4;
 
-  // clear
   ctx.clearRect(0, 0, W, H);
 
   days.forEach((day, i) => {
-    const x   = padL + i * (chartW / days.length) + 2;
-    const bH  = day.count === 0 ? 2 : Math.max(4, (day.count / maxCount) * chartH);
-    const y   = padT + chartH - bH;
+    const x  = padL + i * (chartW / days.length) + 2;
+    const bH = day.count === 0 ? 2 : Math.max(4, (day.count / maxCount) * chartH);
+    const y  = padT + chartH - bH;
 
-    // bar
     ctx.fillStyle = day.count === 0 ? '#374151' : '#3b82f6';
     roundRect(ctx, x, y, barW, bH, 3);
     ctx.fill();
 
-    // label วันที่
     ctx.fillStyle = '#6b7280';
     ctx.font = `10px -apple-system, sans-serif`;
     ctx.textAlign = 'center';
     ctx.fillText(day.label, x + barW / 2, H - 5);
 
-    // count บน bar
     if (day.count > 0) {
       ctx.fillStyle = '#9ca3af';
       ctx.font = `9px -apple-system, sans-serif`;
@@ -150,11 +132,9 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-// ===== SETTINGS =====
 function initSettings(settings) {
   const s = Object.assign({}, DEFAULT_SETTINGS, settings);
 
-  // Severity toggles
   document.getElementById('sev-red').checked    = s.enabledSeverities.RED    !== false;
   document.getElementById('sev-orange').checked = s.enabledSeverities.ORANGE !== false;
   document.getElementById('sev-yellow').checked = s.enabledSeverities.YELLOW !== false;
@@ -163,14 +143,12 @@ function initSettings(settings) {
     document.getElementById(`sev-${lv}`).addEventListener('change', saveSettings);
   });
 
-  // Custom keywords
   renderTags('kw-list', s.customKeywords, 'kw');
   document.getElementById('kw-add').addEventListener('click', () => addTag('kw-input', 'kw-list', 'kw'));
   document.getElementById('kw-input').addEventListener('keydown', e => {
     if (e.key === 'Enter') addTag('kw-input', 'kw-list', 'kw');
   });
 
-  // Whitelist
   renderTags('wl-list', s.whitelist, 'wl');
   document.getElementById('wl-add').addEventListener('click', () => addTag('wl-input', 'wl-list', 'wl'));
   document.getElementById('wl-input').addEventListener('keydown', e => {
@@ -184,7 +162,7 @@ function renderTags(containerId, items, type) {
   (items || []).forEach((item, i) => {
     const tag = document.createElement('span');
     tag.className = 'tag';
-    tag.innerHTML = `${escapeHtml(item)} <button class="tag-remove" data-type="${type}" data-index="${i}">×</button>`;
+    tag.innerHTML = `${escapeHtml(item)} <button class="tag-remove" data-type="${type}" data-index="${i}">x</button>`;
     tag.querySelector('.tag-remove').addEventListener('click', () => removeTag(type, i));
     container.appendChild(tag);
   });
@@ -226,20 +204,21 @@ async function saveSettings() {
   await store.set({ appSettings: s });
 }
 
-// ===== LOG TAB =====
 async function initLog() {
   await renderLogs('ALL');
 
   document.getElementById('log-filter').addEventListener('change', e => renderLogs(e.target.value));
 
-  // Export CSV
   document.getElementById('log-export').addEventListener('click', async () => {
     const { pc_logs: logs = [] } = await store.get('pc_logs');
-    const rows = [['Timestamp', 'Severity', 'Detected', 'Action']];
-    for (const l of logs) {
-      rows.push([l.timestamp, l.severity, (l.detected || []).join('; '), l.action]);
-    }
-    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const header = 'timestamp,severity,detected_type,action';
+    const rows = logs.map(l => {
+      const detectedType = Array.isArray(l.detected) ? l.detected.join('; ') : String(l.detected);
+      return [l.timestamp, l.severity, detectedType, l.action]
+        .map(f => `"${sanitizeCsvField(f).replace(/"/g, '""')}"`)
+        .join(',');
+    });
+    const csv  = [header, ...rows].join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -249,7 +228,6 @@ async function initLog() {
     URL.revokeObjectURL(url);
   });
 
-  // Clear all
   document.getElementById('log-clear').addEventListener('click', async () => {
     if (!confirm('ลบ log ทั้งหมด?')) return;
     await store.set({ pc_logs: [] });
@@ -262,8 +240,7 @@ async function renderLogs(filter = 'ALL') {
   const container = document.getElementById('log-list');
 
   const filtered = filter === 'ALL' ? logs : logs.filter(l => l.severity === filter);
-  // เรียงจากใหม่ไปเก่า
-  const sorted = [...filtered].reverse();
+  const sorted   = [...filtered].reverse(); // newest first
 
   if (sorted.length === 0) {
     container.innerHTML = '<div class="log-empty">ยังไม่มี log</div>';
@@ -271,9 +248,9 @@ async function renderLogs(filter = 'ALL') {
   }
 
   container.innerHTML = sorted.map(l => {
-    const dt     = new Date(l.timestamp);
-    const time   = `${dt.toLocaleDateString('th-TH')} ${dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
-    const action = l.action === 'ส่งต่อ'
+    const dt       = new Date(l.timestamp);
+    const time     = `${dt.toLocaleDateString('th-TH')} ${dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`;
+    const action   = l.action === 'ส่งต่อ'
       ? `<span class="log-action proceed">ส่งต่อ</span>`
       : `<span class="log-action edit">แก้ไข</span>`;
     const detected = Array.isArray(l.detected) ? l.detected.join(', ') : l.detected;
@@ -289,7 +266,12 @@ async function renderLogs(filter = 'ALL') {
   }).join('');
 }
 
-// ===== UTILS =====
+// prefix injection-risk chars with single quote
+function sanitizeCsvField(val) {
+  const s = String(val);
+  return /^[=+\-@]/.test(s) ? "'" + s : s;
+}
+
 function escapeHtml(str) {
   return String(str)
     .replace(/&/g, '&amp;')

@@ -1,8 +1,4 @@
-/* styles.css — PromptChecker: Toast + Highlight Panel (inject ใน claude.ai) */
-
-/* ========================================================
-   TOAST — มุมขวาบน, slide-in จากขวา, ค้างจนกว่า user จะกด
-   ======================================================== */
+/* styles.css - toast and highlight panel injected into claude.ai */
 
 #pc-toast {
   position: fixed;
@@ -24,18 +20,18 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Thai', sans-serif;
 }
 
-/* สีขอบซ้ายตาม severity */
+/* border color by severity */
 #pc-toast.pc-toast--red    { border-left-color: #DC2626; }
 #pc-toast.pc-toast--orange { border-left-color: #EA580C; }
 #pc-toast.pc-toast--yellow { border-left-color: #CA8A04; }
 
-/* พื้นหลัง header ตาม severity */
 #pc-toast.pc-toast--red    .pc-toast-icon { color: #DC2626; }
 #pc-toast.pc-toast--orange .pc-toast-icon { color: #EA580C; }
 #pc-toast.pc-toast--yellow .pc-toast-icon { color: #CA8A04; }
 
 .pc-toast-icon {
   font-size: 20px;
+  font-weight: 700;
   padding: 16px 0 0 16px;
   line-height: 1;
 }
@@ -61,7 +57,7 @@
   line-height: 1.4;
 }
 
-/* รายการหลายประเภท */
+/* list for multiple detections */
 .pc-toast-list {
   margin: 6px 0 8px;
   padding: 0;
@@ -75,7 +71,6 @@
   line-height: 1.5;
 }
 
-/* ปุ่ม action */
 .pc-toast-actions {
   display: flex;
   gap: 8px;
@@ -103,21 +98,17 @@
   border: 1px solid #d1d5db;
 }
 
-/* ปุ่มแก้ไขสีตาม severity */
+/* edit button color by severity */
 .pc-toast--red    .pc-btn--edit { background: #DC2626; color: #fff; }
 .pc-toast--orange .pc-btn--edit { background: #EA580C; color: #fff; }
 .pc-toast--yellow .pc-btn--edit { background: #CA8A04; color: #fff; }
 
-/* slide-in animation */
 @keyframes pc-slideIn {
   from { transform: translateX(calc(100% + 28px)); opacity: 0; }
   to   { transform: translateX(0);                  opacity: 1; }
 }
 
-/* ========================================================
-   HIGHLIGHT PANEL — แสดงใต้ input, รายการ + Auto-Redact
-   ======================================================== */
-
+/* highlight panel below input */
 .pc-hl-panel {
   background: #ffffff;
   border: 1px solid #e5e7eb;

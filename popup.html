@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <title>PromptChecker</title>
   <style>
-    /* ===== RESET & BASE ===== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
@@ -17,7 +16,6 @@
       line-height: 1.5;
     }
 
-    /* ===== HEADER ===== */
     .header {
       display: flex;
       align-items: center;
@@ -32,8 +30,6 @@
       gap: 8px;
     }
 
-    .header-logo { font-size: 20px; }
-
     .header-title {
       font-size: 15px;
       font-weight: 700;
@@ -46,7 +42,6 @@
       margin-top: 1px;
     }
 
-    /* ===== TOGGLE SWITCH ===== */
     .toggle-wrap { display: flex; align-items: center; gap: 8px; }
     .toggle-label { font-size: 12px; color: #9ca3af; }
 
@@ -80,7 +75,6 @@
     .toggle input:checked + .toggle-slider { background: #16a34a; }
     .toggle input:checked + .toggle-slider::after { transform: translateX(18px); }
 
-    /* ===== TABS ===== */
     .tabs {
       display: flex;
       border-bottom: 1px solid #1f2937;
@@ -103,11 +97,9 @@
     .tab-btn:hover { color: #d1d5db; }
     .tab-btn.active { color: #60a5fa; border-bottom-color: #60a5fa; }
 
-    /* ===== TAB CONTENT ===== */
     .tab-content { display: none; padding: 16px; }
     .tab-content.active { display: block; }
 
-    /* ===== DASHBOARD ===== */
     .stats-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -149,7 +141,6 @@
 
     #pc-chart { width: 100%; display: block; }
 
-    /* ===== SETTINGS ===== */
     .section-title {
       font-size: 11px;
       font-weight: 600;
@@ -185,7 +176,6 @@
 
     .section { margin-bottom: 20px; }
 
-    /* Custom keywords */
     .kw-input-row {
       display: flex;
       gap: 6px;
@@ -250,7 +240,6 @@
 
     .tag-remove:hover { color: #ef4444; }
 
-    /* ===== LOG TAB ===== */
     .log-toolbar {
       display: flex;
       gap: 6px;
@@ -344,10 +333,8 @@
 </head>
 <body>
 
-  <!-- Header -->
   <div class="header">
     <div class="header-left">
-      <span class="header-logo">🛡</span>
       <div>
         <div class="header-title">PromptChecker</div>
         <div class="header-sub">ป้องกันข้อมูลลับบน claude.ai</div>
@@ -362,16 +349,13 @@
     </div>
   </div>
 
-  <!-- Tabs -->
   <div class="tabs">
-    <button class="tab-btn active" data-tab="tab-dashboard">📊 Dashboard</button>
-    <button class="tab-btn" data-tab="tab-settings">⚙️ Settings</button>
-    <button class="tab-btn" data-tab="tab-log">📋 Log</button>
+    <button class="tab-btn active" data-tab="tab-dashboard">Dashboard</button>
+    <button class="tab-btn" data-tab="tab-settings">Settings</button>
+    <button class="tab-btn" data-tab="tab-log">Log</button>
   </div>
 
-  <!-- ===== TAB: DASHBOARD ===== -->
   <div id="tab-dashboard" class="tab-content active">
-
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-number" id="stat-total">0</div>
@@ -386,21 +370,15 @@
         <div class="stat-label">แก้ไข</div>
       </div>
     </div>
-
     <div class="chart-wrap">
       <div class="chart-title">การแจ้งเตือน 7 วันล่าสุด</div>
       <canvas id="pc-chart" height="100"></canvas>
     </div>
-
   </div>
 
-  <!-- ===== TAB: SETTINGS ===== -->
   <div id="tab-settings" class="tab-content">
-
-    <!-- Severity toggles -->
     <div class="section">
       <p class="section-title">ระดับการแจ้งเตือน</p>
-
       <div class="setting-row">
         <span class="setting-name">
           <span class="severity-dot" style="background:#DC2626"></span>
@@ -411,7 +389,6 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
-
       <div class="setting-row">
         <span class="setting-name">
           <span class="severity-dot" style="background:#EA580C"></span>
@@ -422,7 +399,6 @@
           <span class="toggle-slider"></span>
         </label>
       </div>
-
       <div class="setting-row">
         <span class="setting-name">
           <span class="severity-dot" style="background:#CA8A04"></span>
@@ -435,7 +411,6 @@
       </div>
     </div>
 
-    <!-- Custom keywords -->
     <div class="section">
       <p class="section-title">Custom Keywords</p>
       <div class="kw-input-row">
@@ -445,7 +420,6 @@
       <div id="kw-list" class="tag-list"></div>
     </div>
 
-    <!-- Whitelist -->
     <div class="section">
       <p class="section-title">Whitelist (ข้าม prompt ที่มีคำนี้)</p>
       <div class="kw-input-row">
@@ -454,27 +428,22 @@
       </div>
       <div id="wl-list" class="tag-list"></div>
     </div>
-
   </div>
 
-  <!-- ===== TAB: LOG ===== -->
   <div id="tab-log" class="tab-content">
-
     <div class="log-toolbar">
       <select id="log-filter" class="log-filter">
         <option value="ALL">ทุกระดับ</option>
-        <option value="RED">🔴 RED</option>
-        <option value="ORANGE">🟠 ORANGE</option>
-        <option value="YELLOW">🟡 YELLOW</option>
+        <option value="RED">RED</option>
+        <option value="ORANGE">ORANGE</option>
+        <option value="YELLOW">YELLOW</option>
       </select>
       <button id="log-export" class="btn-sm">Export CSV</button>
       <button id="log-clear" class="btn-sm btn-danger">Clear</button>
     </div>
-
     <div id="log-list" class="log-list">
       <div class="log-empty">ยังไม่มี log</div>
     </div>
-
   </div>
 
   <script src="popup.js"></script>

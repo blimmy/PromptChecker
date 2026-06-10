@@ -1,8 +1,6 @@
-// rules.js — Detection Engine: กฎตรวจจับข้อมูลลับทุกประเภท
+// rules.js - detection engine
 
-// กฎมาตรฐานแยกตาม severity
 const RULES = [
-  // ===================== RED — วิกฤต =====================
   {
     id: 'national_id',
     name: 'เลขบัตรประชาชน',
@@ -25,7 +23,7 @@ const RULES = [
     name: 'เลขบัญชีธนาคาร',
     severity: 'RED',
     redactLabel: 'REDACTED-ACCOUNT',
-    // ตรวจ 10–12 หลัก แต่ระวังไม่ให้ชนกับเลข national_id (13 หลัก)
+    // 10-12 digits, avoids collision with 13-digit national_id
     patterns: [/\b(?<!\d)\d{10,12}(?!\d)\b/g]
   },
   {
@@ -42,8 +40,6 @@ const RULES = [
     redactLabel: 'REDACTED-KEY',
     patterns: [/-----BEGIN .{0,60}PRIVATE KEY-----/g]
   },
-
-  // ===================== ORANGE — สูง =====================
   {
     id: 'thai_phone',
     name: 'เบอร์โทรศัพท์',
@@ -79,8 +75,6 @@ const RULES = [
     redactLabel: 'REDACTED-AMOUNT',
     patterns: [/\b\d{1,3}(,\d{3})+\s*(บาท|THB|USD|฿|\$)\b/g]
   },
-
-  // ===================== YELLOW — ทั่วไป =====================
   {
     id: 'confidential',
     name: 'คำสำคัญลับ',
@@ -93,19 +87,13 @@ const RULES = [
   }
 ];
 
-// ค่าแสดงผลของแต่ละ severity
 const SEVERITY_CONFIG = {
-  RED:    { color: '#DC2626', bg: '#FEF2F2', emoji: '🔴', label: 'วิกฤต',   priority: 3 },
-  ORANGE: { color: '#EA580C', bg: '#FFF7ED', emoji: '🟠', label: 'สูง',     priority: 2 },
-  YELLOW: { color: '#CA8A04', bg: '#FEFCE8', emoji: '🟡', label: 'ทั่วไป',  priority: 1 }
+  RED:    { color: '#DC2626', bg: '#FEF2F2', label: 'วิกฤต',  priority: 3 },
+  ORANGE: { color: '#EA580C', bg: '#FFF7ED', label: 'สูง',    priority: 2 },
+  YELLOW: { color: '#CA8A04', bg: '#FEFCE8', label: 'ทั่วไป', priority: 1 }
 };
 
-/**
- * สแกนข้อความหา sensitive data ตามกฎทั้งหมด
- * @param {string} text — ข้อความจาก input
- * @param {object} settings — การตั้งค่าจาก storage
- * @returns {Array<{id, name, severity, redactLabel, matches[]}>}
- */
+// scan text for sensitive data using all rules
 function detectSensitiveData(text, settings = {}) {
   const {
     enabledSeverities = { RED: true, ORANGE: true, YELLOW: true },
@@ -113,7 +101,7 @@ function detectSensitiveData(text, settings = {}) {
     whitelist = []
   } = settings;
 
-  // ถ้า text มีคำ whitelist ข้ามได้เลย
+  // skip if text contains a whitelisted term
   if (whitelist.some(w => w && text.toLowerCase().includes(w.toLowerCase()))) {
     return [];
   }
@@ -127,7 +115,7 @@ function detectSensitiveData(text, settings = {}) {
     const matchList = [];
 
     for (const pat of rule.patterns) {
-      // clone regex เพื่อ reset lastIndex
+      // clone to reset lastIndex
       const re = new RegExp(pat.source, pat.flags);
       let m;
       while ((m = re.exec(text)) !== null) {
@@ -150,7 +138,7 @@ function detectSensitiveData(text, settings = {}) {
     }
   }
 
-  // ตรวจ custom keywords (YELLOW)
+  // custom keywords as YELLOW
   if (enabledSeverities.YELLOW && customKeywords.length > 0) {
     const customList = [];
     for (const kw of customKeywords) {

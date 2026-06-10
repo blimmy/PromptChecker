@@ -1,23 +1,20 @@
-// content.js — Main content script: ดักจับ submit, แสดง toast, จัดการ highlight
+// content.js - intercept submit, show toast, manage highlight
 
-// ========== STATE ==========
 let checkerEnabled = true;
 let appSettings = {
   enabledSeverities: { RED: true, ORANGE: true, YELLOW: true },
   customKeywords: [],
   whitelist: []
 };
-let skipIntercept = false;   // flag ป้องกัน loop เมื่อ re-click หลัง "ส่งต่อ"
+let skipIntercept = false; // prevents re-intercept loop after "proceed"
 let activeToast = null;
 let currentMatches = [];
 
-// ========== BOOTSTRAP ==========
 (async function init() {
   const d = await chrome.storage.local.get(['checkerEnabled', 'appSettings']);
   checkerEnabled = d.checkerEnabled !== false;
   if (d.appSettings) appSettings = Object.assign(appSettings, d.appSettings);
 
-  // รับการเปลี่ยนแปลง settings จาก popup แบบ real-time
   chrome.storage.onChanged.addListener(changes => {
     if ('checkerEnabled' in changes) checkerEnabled = changes.checkerEnabled.newValue;
     if ('appSettings' in changes) appSettings = Object.assign(appSettings, changes.appSettings.newValue);
@@ -26,7 +23,7 @@ let currentMatches = [];
   waitForInput();
 })();
 
-// ========== รอให้ claude.ai render input area (SPA) ==========
+// wait for claude.ai to render input area (SPA)
 function waitForInput() {
   let bound = false;
 
@@ -38,7 +35,6 @@ function waitForInput() {
     bound = true;
     bindEvents(input, btn);
 
-    // SPA navigation: reset เมื่อ URL เปลี่ยน
     const onNav = () => { bound = false; removeHighlights(); tryBind(); };
     window.addEventListener('popstate', onNav, { once: true });
   };
@@ -49,10 +45,9 @@ function waitForInput() {
 }
 
 function bindEvents(input, btn) {
-  // ดักจับ click ปุ่มส่ง
   btn.addEventListener('click', onSubmitAttempt, true);
 
-  // ดักจับ Enter (ไม่ใช่ Shift+Enter = ขึ้นบรรทัด)
+  // intercept Enter but not Shift+Enter (newline)
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
       onSubmitAttempt(e);
@@ -60,7 +55,7 @@ function bindEvents(input, btn) {
   }, true);
 }
 
-// ========== Selector helpers (claude.ai อาจเปลี่ยน DOM ได้) ==========
+// claude.ai may update DOM selectors — multiple fallbacks
 function getInputEl() {
   return (
     document.querySelector('.ProseMirror[contenteditable]') ||
@@ -83,7 +78,6 @@ function getInputText() {
   return el ? (el.innerText || el.textContent || '') : '';
 }
 
-// ========== INTERCEPT SUBMIT ==========
 function onSubmitAttempt(e) {
   if (!checkerEnabled || skipIntercept) return;
 
@@ -100,7 +94,7 @@ function onSubmitAttempt(e) {
   showToast(found, proceedWithSubmit);
 }
 
-// re-trigger submit โดยไม่ผ่าน interceptor
+// re-trigger submit without passing through interceptor
 function proceedWithSubmit() {
   skipIntercept = true;
   const btn = getSendBtn();
@@ -108,11 +102,9 @@ function proceedWithSubmit() {
   setTimeout(() => { skipIntercept = false; }, 800);
 }
 
-// ========== TOAST ==========
 function showToast(matches, onProceed) {
   removeToast();
 
-  // หา severity สูงสุด
   const topSeverity = matches.reduce((top, m) =>
     SEVERITY_CONFIG[m.severity].priority > SEVERITY_CONFIG[top].priority ? m.severity : top
   , matches[0].severity);
@@ -125,19 +117,17 @@ function showToast(matches, onProceed) {
   toast.className = `pc-toast pc-toast--${severityClass}`;
   toast.innerHTML = matches.length === 1
     ? buildSingleToast(matches[0], cfg)
-    : buildMultiToast(matches, topSeverity, cfg);
+    : buildMultiToast(matches, cfg);
 
   document.body.appendChild(toast);
   activeToast = toast;
 
-  // ปุ่ม "ส่งต่อ" — log และส่งต่อ
   toast.querySelector('#pc-proceed').addEventListener('click', async () => {
     await Logger.addEntry(topSeverity, matches.map(m => m.name), 'ส่งต่อ');
     removeToast();
     onProceed();
   });
 
-  // ปุ่ม "แก้ไขก่อน" — log, ปิด toast, เปิด highlight panel
   toast.querySelector('#pc-edit').addEventListener('click', async () => {
     await Logger.addEntry(topSeverity, matches.map(m => m.name), 'แก้ไขก่อน');
     removeToast();
@@ -147,10 +137,10 @@ function showToast(matches, onProceed) {
 
 function buildSingleToast(match, cfg) {
   return `
-    <div class="pc-toast-icon">⚠️</div>
+    <div class="pc-toast-icon">!</div>
     <div class="pc-toast-body">
       <p class="pc-toast-title">คุณกำลังจะส่ง "<strong>${match.name}</strong>" หรือเปล่า?</p>
-      <p class="pc-toast-sub">ข้อมูลนี้เป็นระดับ ${cfg.emoji} <strong>${cfg.label}</strong> — โปรดตรวจสอบก่อนส่ง</p>
+      <p class="pc-toast-sub">ข้อมูลนี้เป็นระดับ <strong>${cfg.label}</strong> — โปรดตรวจสอบก่อนส่ง</p>
     </div>
     <div class="pc-toast-actions">
       <button id="pc-proceed" class="pc-btn pc-btn--proceed">ส่งต่อ</button>
@@ -158,17 +148,14 @@ function buildSingleToast(match, cfg) {
     </div>`;
 }
 
-function buildMultiToast(matches, topSeverity, cfg) {
-  const items = matches.map(m => {
-    const mc = SEVERITY_CONFIG[m.severity];
-    return `<li>${mc.emoji} ${m.name}</li>`;
-  }).join('');
+function buildMultiToast(matches, cfg) {
+  const items = matches.map(m => `<li>${m.name}</li>`).join('');
   return `
-    <div class="pc-toast-icon">⚠️</div>
+    <div class="pc-toast-icon">!</div>
     <div class="pc-toast-body">
       <p class="pc-toast-title">พบข้อมูลที่ควรระวัง <strong>${matches.length} รายการ</strong></p>
       <ul class="pc-toast-list">${items}</ul>
-      <p class="pc-toast-sub">ข้อมูลสูงสุดอยู่ระดับ ${cfg.emoji} <strong>${cfg.label}</strong> — โปรดตรวจสอบก่อนส่ง</p>
+      <p class="pc-toast-sub">ข้อมูลสูงสุดอยู่ระดับ <strong>${cfg.label}</strong> — โปรดตรวจสอบก่อนส่ง</p>
     </div>
     <div class="pc-toast-actions">
       <button id="pc-proceed" class="pc-btn pc-btn--proceed">ส่งต่อ</button>
@@ -180,7 +167,6 @@ function removeToast() {
   if (activeToast) { activeToast.remove(); activeToast = null; }
 }
 
-// ========== HIGHLIGHT ==========
 function showHighlights(matches) {
   removeHighlights();
 
@@ -188,15 +174,11 @@ function showHighlights(matches) {
   if (!inputEl) return;
 
   const text = getInputText();
-
-  // สร้าง overlay wavy-underline เหนือ input
   buildTextOverlay(inputEl, matches, text);
-
-  // สร้าง panel แสดงรายการ + Auto-Redact
   buildHighlightPanel(inputEl, matches);
 }
 
-// --- Overlay: วางทับ input แสดงเส้น wavy underline แบบ transparent ---
+// transparent overlay over input with wavy underlines on matched text
 function buildTextOverlay(inputEl, matches, text) {
   document.getElementById('pc-overlay')?.remove();
 
@@ -217,7 +199,7 @@ function buildTextOverlay(inputEl, matches, text) {
     color: transparent; background: transparent;
   `;
 
-  // รวม matches ทั้งหมด แล้วเรียงจากหลังไปหน้า (ป้องกัน index เลื่อน)
+  // sort descending by index to avoid position shift during insertion
   const all = [];
   for (const rule of matches) {
     for (const m of rule.matches) all.push({ ...m, rule });
@@ -234,7 +216,6 @@ function buildTextOverlay(inputEl, matches, text) {
   overlay.innerHTML = html;
   document.body.appendChild(overlay);
 
-  // อัปเดต position เมื่อ scroll หรือ resize
   const update = () => {
     const r = inputEl.getBoundingClientRect();
     overlay.style.top = `${r.top}px`;
@@ -247,7 +228,6 @@ function buildTextOverlay(inputEl, matches, text) {
   inputEl.addEventListener('scroll', update, { passive: true });
 }
 
-// --- Panel: รายการ + ปุ่ม Auto-Redact ---
 function buildHighlightPanel(inputEl, matches) {
   const panel = document.createElement('div');
   panel.id = 'pc-hl-panel';
@@ -258,7 +238,7 @@ function buildHighlightPanel(inputEl, matches) {
     return `
       <div class="pc-hl-item">
         <span class="pc-hl-badge" style="background:${cfg.bg};color:${cfg.color};border-color:${cfg.color}">
-          ${cfg.emoji} ${m.name} (${m.matches.length})
+          ${m.name} (${m.matches.length})
         </span>
         <button class="pc-hl-redact-btn"
           data-rule-id="${m.id}"
@@ -268,11 +248,11 @@ function buildHighlightPanel(inputEl, matches) {
 
   panel.innerHTML = `
     <div class="pc-hl-header">
-      <span>🔍 พบข้อมูลที่ควรระวัง</span>
-      <button id="pc-hl-close">✕</button>
+      <span>พบข้อมูลที่ควรระวัง</span>
+      <button id="pc-hl-close">X</button>
     </div>
     <div class="pc-hl-items">${items}</div>
-    <button id="pc-hl-redact-all">🛡 Auto-Redact ทั้งหมด</button>`;
+    <button id="pc-hl-redact-all">Auto-Redact ทั้งหมด</button>`;
 
   inputEl.insertAdjacentElement('afterend', panel);
 
@@ -292,7 +272,6 @@ function removeHighlights() {
   document.getElementById('pc-hl-panel')?.remove();
 }
 
-// ========== REDACT ==========
 function redactByRule(ruleId, redactLabel) {
   const rule = currentMatches.find(m => m.id === ruleId);
   if (!rule) return;
@@ -317,7 +296,7 @@ function redactAll() {
   applyText(text);
 }
 
-// อัปเดตข้อความใน contenteditable แบบที่ React รับรู้ได้
+// update contenteditable in a way React can detect
 function applyText(newText) {
   removeHighlights();
   const el = getInputEl();
@@ -326,7 +305,6 @@ function applyText(newText) {
   document.execCommand('selectAll');
   document.execCommand('insertText', false, newText);
 
-  // ตรวจสอบใหม่หลัง redact
   const remaining = detectSensitiveData(newText, appSettings);
   if (remaining.length > 0) {
     currentMatches = remaining;
@@ -334,7 +312,6 @@ function applyText(newText) {
   }
 }
 
-// ========== UTILS ==========
 function escapeHtml(str) {
   return str
     .replace(/&/g, '&amp;')

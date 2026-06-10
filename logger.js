@@ -1,8 +1,8 @@
-// logger.js — จัดการ log การตรวจจับ (privacy-safe: ไม่เก็บข้อความต้นฉบับ)
+// logger.js - log manager, no original text stored
 
 const Logger = (() => {
   const KEY = 'pc_logs';
-  const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000; // 90 วัน
+  const MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 
   async function _read() {
     const d = await chrome.storage.local.get(KEY);
@@ -13,7 +13,12 @@ const Logger = (() => {
     await chrome.storage.local.set({ [KEY]: logs });
   }
 
-  // ลบ entry เก่าเกิน 90 วันออกก่อน save
+  // prefix injection-risk chars with a single quote per OWASP CSV guidelines
+  function _sanitize(val) {
+    const s = String(val);
+    return /^[=+\-@]/.test(s) ? "'" + s : s;
+  }
+
   async function addEntry(severity, detected, action) {
     const logs = await _read();
     const cutoff = Date.now() - MAX_AGE_MS;
@@ -21,8 +26,8 @@ const Logger = (() => {
     fresh.push({
       timestamp: new Date().toISOString(),
       severity,
-      detected,   // array ของชื่อประเภท เช่น ['เบอร์โทรศัพท์', 'อีเมล']
-      action      // 'ส่งต่อ' หรือ 'แก้ไขก่อน'
+      detected,
+      action
     });
     await _write(fresh);
   }
@@ -35,31 +40,35 @@ const Logger = (() => {
     await _write([]);
   }
 
-  // Export เป็น CSV สำหรับดาวน์โหลด
-  async function exportCSV() {
+  // removes entries older than 90 days without adding a new one
+  async function purgeOldLogs() {
     const logs = await _read();
-    const rows = [['Timestamp', 'Severity', 'Detected', 'Action']];
-    for (const l of logs) {
-      rows.push([
-        l.timestamp,
-        l.severity,
-        Array.isArray(l.detected) ? l.detected.join('; ') : l.detected,
-        l.action
-      ]);
+    const cutoff = Date.now() - MAX_AGE_MS;
+    const fresh = logs.filter(l => new Date(l.timestamp).getTime() > cutoff);
+    if (fresh.length !== logs.length) {
+      await _write(fresh);
     }
-    return rows
-      .map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
   }
 
-  // คืนสถิติสำหรับแสดงใน popup
+  // fields: timestamp, severity, detected_type, action — no original text
+  async function exportCSV() {
+    const logs = await _read();
+    const header = 'timestamp,severity,detected_type,action';
+    const rows = logs.map(l => {
+      const detectedType = Array.isArray(l.detected) ? l.detected.join('; ') : String(l.detected);
+      return [l.timestamp, l.severity, detectedType, l.action]
+        .map(f => `"${_sanitize(f).replace(/"/g, '""')}"`)
+        .join(',');
+    });
+    return [header, ...rows].join('\n');
+  }
+
   async function getStats() {
     const logs = await _read();
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthLogs = logs.filter(l => new Date(l.timestamp) >= monthStart);
 
-    // สร้างข้อมูลกราฟ 7 วันล่าสุด
     const last7 = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
@@ -80,5 +89,8 @@ const Logger = (() => {
     };
   }
 
-  return { addEntry, getAll, clearAll, exportCSV, getStats };
+  // purge on every extension load
+  purgeOldLogs();
+
+  return { addEntry, getAll, clearAll, exportCSV, getStats, purgeOldLogs };
 })();
